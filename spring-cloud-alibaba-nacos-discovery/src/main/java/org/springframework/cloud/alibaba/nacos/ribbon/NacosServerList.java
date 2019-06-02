@@ -16,14 +16,13 @@
 
 package org.springframework.cloud.alibaba.nacos.ribbon;
 
+import com.alibaba.nacos.api.naming.pojo.Instance;
 import com.netflix.client.config.IClientConfig;
 import com.netflix.loadbalancer.AbstractServerList;
 import org.springframework.cloud.alibaba.nacos.NacosDiscoveryProperties;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.alibaba.nacos.api.naming.pojo.Instance;
 
 /**
  * @author xiaojing
@@ -63,7 +62,10 @@ public class NacosServerList extends AbstractServerList<NacosServer> {
 	}
 
 	private List<NacosServer> instancesToServerList(List<Instance> instances) {
-		List<NacosServer> result = new ArrayList<>(instances.size());
+		List<NacosServer> result = new ArrayList<>();
+		if (null == instances) {
+			return result;
+		}
 		for (Instance instance : instances) {
 			result.add(new NacosServer(instance));
 		}

@@ -16,14 +16,9 @@
 
 package org.springframework.cloud.alibaba.sentinel;
 
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-
-import java.util.Arrays;
-
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,9 +35,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import com.alibaba.csp.sentinel.slots.block.RuleConstant;
-import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
-import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import java.util.Arrays;
+
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * @author <a href="mailto:fangjian0423@gmail.com">Jim</a>
@@ -60,6 +59,9 @@ public class SentinelFeignTests {
 
 	@Autowired
 	private BarService barService;
+
+	@Autowired
+	private BazService bazService;
 
 	@Before
 	public void setUp() {
@@ -84,7 +86,14 @@ public class SentinelFeignTests {
 		rule3.setLimitApp("default");
 		rule3.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_DEFAULT);
 		rule3.setStrategy(RuleConstant.STRATEGY_DIRECT);
-		FlowRuleManager.loadRules(Arrays.asList(rule1, rule2, rule3));
+		FlowRule rule4 = new FlowRule();
+		rule4.setGrade(RuleConstant.FLOW_GRADE_QPS);
+		rule4.setCount(0);
+		rule4.setResource("GET:http://baz-service/baz");
+		rule4.setLimitApp("default");
+		rule4.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_DEFAULT);
+		rule4.setStrategy(RuleConstant.STRATEGY_DIRECT);
+		FlowRuleManager.loadRules(Arrays.asList(rule1, rule2, rule3,rule4));
 	}
 
 	@Test
@@ -101,6 +110,9 @@ public class SentinelFeignTests {
 				fooService.echo("test"));
 		assertThatExceptionOfType(Exception.class).isThrownBy(() -> {
 			barService.bar();
+		});
+		assertThatExceptionOfType(Exception.class).isThrownBy(() -> {
+			bazService.baz();
 		});
 
 		assertNotEquals("ToString method invoke was not in SentinelInvocationHandler",
@@ -145,6 +157,15 @@ public class SentinelFeignTests {
 	public interface BarService {
 		@RequestMapping(path = "bar")
 		String bar();
+	}
+
+	public interface BazService {
+		@RequestMapping(path = "baz")
+		String baz();
+	}
+
+	@FeignClient(value = "baz-service")
+	public interface BazClient extends BazService {
 	}
 
 	public static class EchoServiceFallback implements EchoService {

@@ -18,6 +18,7 @@ package org.springframework.cloud.alibaba.nacos;
 
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.naming.NamingService;
+import com.alibaba.nacos.api.naming.PreservedMetadataKeys;
 import com.alibaba.nacos.client.naming.utils.UtilAndComs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +40,13 @@ import static com.alibaba.nacos.api.PropertyKeyConst.*;
 /**
  * @author dungu.zpf
  * @author xiaojing
+ * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  */
 
 @ConfigurationProperties("spring.cloud.nacos.discovery")
 public class NacosDiscoveryProperties {
 
-	private static final Logger LOGGER = LoggerFactory
+	private static final Logger log = LoggerFactory
 			.getLogger(NacosDiscoveryProperties.class);
 
 	/**
@@ -62,6 +64,11 @@ public class NacosDiscoveryProperties {
 	 * namespace, separation registry of different environments.
 	 */
 	private String namespace;
+
+	/**
+	 * watch delay,duration to pull new service from nacos server.
+	 */
+	private long watchDelay = 30000;
 
 	/**
 	 * nacos naming log file name
@@ -143,11 +150,15 @@ public class NacosDiscoveryProperties {
 	@PostConstruct
 	public void init() throws SocketException {
 
+		metadata.put(PreservedMetadataKeys.REGISTER_SOURCE, "SPRING_CLOUD");
 		if (secure) {
 			metadata.put("secure", "true");
 		}
 
 		serverAddr = Objects.toString(serverAddr, "");
+		if (serverAddr.lastIndexOf("/") != -1) {
+			serverAddr = serverAddr.substring(0, serverAddr.length() - 1);
+		}
 		endpoint = Objects.toString(endpoint, "");
 		namespace = Objects.toString(namespace, "");
 		logName = Objects.toString(logName, "");
@@ -318,16 +329,25 @@ public class NacosDiscoveryProperties {
 		this.namingLoadCacheAtStart = namingLoadCacheAtStart;
 	}
 
+	public long getWatchDelay() {
+		return watchDelay;
+	}
+
+	public void setWatchDelay(long watchDelay) {
+		this.watchDelay = watchDelay;
+	}
+
 	@Override
 	public String toString() {
 		return "NacosDiscoveryProperties{" + "serverAddr='" + serverAddr + '\''
 				+ ", endpoint='" + endpoint + '\'' + ", namespace='" + namespace + '\''
-				+ ", logName='" + logName + '\'' + ", service='" + service + '\''
-				+ ", weight=" + weight + ", clusterName='" + clusterName + '\''
-				+ ", metadata=" + metadata + ", registerEnabled=" + registerEnabled
-				+ ", ip='" + ip + '\'' + ", networkInterface='" + networkInterface + '\''
-				+ ", port=" + port + ", secure=" + secure + ", accessKey='" + accessKey
-				+ ", namingLoadCacheAtStart=" + namingLoadCacheAtStart + '\''
+				+ ", watchDelay=" + watchDelay + ", logName='" + logName + '\''
+				+ ", service='" + service + '\'' + ", weight=" + weight
+				+ ", clusterName='" + clusterName + '\'' + ", namingLoadCacheAtStart='"
+				+ namingLoadCacheAtStart + '\'' + ", metadata=" + metadata
+				+ ", registerEnabled=" + registerEnabled + ", ip='" + ip + '\''
+				+ ", networkInterface='" + networkInterface + '\'' + ", port=" + port
+				+ ", secure=" + secure + ", accessKey='" + accessKey + '\''
 				+ ", secretKey='" + secretKey + '\'' + '}';
 	}
 
@@ -373,7 +393,16 @@ public class NacosDiscoveryProperties {
 		properties.put(SERVER_ADDR, serverAddr);
 		properties.put(NAMESPACE, namespace);
 		properties.put(UtilAndComs.NACOS_NAMING_LOG_NAME, logName);
-		properties.put(ENDPOINT, endpoint);
+
+		if (endpoint.contains(":")) {
+			int index = endpoint.indexOf(":");
+			properties.put(ENDPOINT, endpoint.substring(0, index));
+			properties.put(ENDPOINT_PORT, endpoint.substring(index + 1));
+		}
+		else {
+			properties.put(ENDPOINT, endpoint);
+		}
+
 		properties.put(ACCESS_KEY, accessKey);
 		properties.put(SECRET_KEY, secretKey);
 		properties.put(CLUSTER_NAME, clusterName);
@@ -381,12 +410,12 @@ public class NacosDiscoveryProperties {
 
 		try {
 			namingService = NacosFactory.createNamingService(properties);
-			return namingService;
 		}
 		catch (Exception e) {
-			LOGGER.error("create naming service error!properties={},e=,", this, e);
+			log.error("create naming service error!properties={},e=,", this, e);
 			return null;
 		}
+		return namingService;
 	}
 
 }

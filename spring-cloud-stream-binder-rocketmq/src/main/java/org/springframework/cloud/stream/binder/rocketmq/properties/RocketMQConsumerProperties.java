@@ -18,6 +18,7 @@ package org.springframework.cloud.stream.binder.rocketmq.properties;
 
 import org.apache.rocketmq.client.consumer.MQPushConsumer;
 import org.apache.rocketmq.client.consumer.MessageSelector;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
@@ -50,41 +51,27 @@ public class RocketMQConsumerProperties {
 	 */
 	private Boolean orderly = false;
 
+	/**
+	 * for concurrently listener. message consume retry strategy. see
+	 * {@link ConsumeConcurrentlyContext#delayLevelWhenNextConsume}. -1 means dlq(or
+	 * discard, see {@link this#shouldRequeue}), others means requeue
+	 */
+	private int delayLevelWhenNextConsume = 0;
+
+	/**
+	 * for orderly listener. next retry delay time
+	 */
+	private long suspendCurrentQueueTimeMillis = 1000;
+
 	private Boolean enabled = true;
 
-	private Error error;
+	// ------------ For Pull Consumer ------------
 
-	public static class Error {
+	private long pullTimeout = 10 * 1000;
 
-		/**
-		 * Reconsume later timeMillis in ConsumeOrderlyContext.
-		 */
-		private Long suspendCurrentQueueTimeMillis = 1000L;
+	private boolean fromStore;
 
-		/**
-		 * Message consume retry strategy in ConsumeConcurrentlyContext.
-		 *
-		 * -1,no retry,put into DLQ directly 0,broker control retry frequency >0,client
-		 * control retry frequency
-		 */
-		private Integer delayLevelWhenNextConsume = 0;
-
-		public Long getSuspendCurrentQueueTimeMillis() {
-			return suspendCurrentQueueTimeMillis;
-		}
-
-		public void setSuspendCurrentQueueTimeMillis(Long suspendCurrentQueueTimeMillis) {
-			this.suspendCurrentQueueTimeMillis = suspendCurrentQueueTimeMillis;
-		}
-
-		public Integer getDelayLevelWhenNextConsume() {
-			return delayLevelWhenNextConsume;
-		}
-
-		public void setDelayLevelWhenNextConsume(Integer delayLevelWhenNextConsume) {
-			this.delayLevelWhenNextConsume = delayLevelWhenNextConsume;
-		}
-	}
+	// ------------ For Pull Consumer ------------
 
 	public String getTags() {
 		return tags;
@@ -126,11 +113,39 @@ public class RocketMQConsumerProperties {
 		this.broadcasting = broadcasting;
 	}
 
-	public Error getError() {
-		return error;
+	public int getDelayLevelWhenNextConsume() {
+		return delayLevelWhenNextConsume;
 	}
 
-	public void setError(Error error) {
-		this.error = error;
+	public void setDelayLevelWhenNextConsume(int delayLevelWhenNextConsume) {
+		this.delayLevelWhenNextConsume = delayLevelWhenNextConsume;
+	}
+
+	public long getSuspendCurrentQueueTimeMillis() {
+		return suspendCurrentQueueTimeMillis;
+	}
+
+	public void setSuspendCurrentQueueTimeMillis(long suspendCurrentQueueTimeMillis) {
+		this.suspendCurrentQueueTimeMillis = suspendCurrentQueueTimeMillis;
+	}
+
+	public long getPullTimeout() {
+		return pullTimeout;
+	}
+
+	public void setPullTimeout(long pullTimeout) {
+		this.pullTimeout = pullTimeout;
+	}
+
+	public boolean isFromStore() {
+		return fromStore;
+	}
+
+	public void setFromStore(boolean fromStore) {
+		this.fromStore = fromStore;
+	}
+
+	public boolean shouldRequeue() {
+		return delayLevelWhenNextConsume != -1;
 	}
 }

@@ -16,8 +16,7 @@
 
 package org.springframework.cloud.alibaba.sentinel;
 
-import static org.junit.Assert.assertEquals;
-
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import org.junit.Test;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.cloud.alibaba.sentinel.annotation.SentinelRestTemplate;
@@ -31,7 +30,7 @@ import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.web.client.RestTemplate;
 
-import com.alibaba.csp.sentinel.slots.block.BlockException;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author <a href="mailto:fangjian0423@gmail.com">Jim</a>
@@ -85,6 +84,11 @@ public class SentinelRestTemplateTests {
 	public void testFbkReturnValue() {
 		new AnnotationConfigApplicationContext(TestConfig9.class);
 	}
+
+    @Test
+    public void testNormalWithoutParam() {
+        new AnnotationConfigApplicationContext(TestConfig10.class);
+    }
 
 	@Configuration
 	public static class TestConfig1 {
@@ -220,6 +224,27 @@ public class SentinelRestTemplateTests {
 			return new RestTemplate();
 		}
 	}
+
+    @Configuration
+    public static class TestConfig10 {
+        @Bean
+        SentinelBeanPostProcessor sentinelBeanPostProcessor(
+            ApplicationContext applicationContext) {
+            return new SentinelBeanPostProcessor(applicationContext);
+        }
+
+        @Bean
+        @SentinelRestTemplate
+        RestTemplate restTemplate() {
+            return new RestTemplate();
+        }
+
+        @Bean
+        @SentinelRestTemplate
+        RestTemplate restTemplate2() {
+            return new RestTemplate();
+        }
+    }
 
 	public static class ExceptionUtil {
 		public static SentinelClientHttpResponse handleException(HttpRequest request,

@@ -1,7 +1,9 @@
 package org.springframework.cloud.alibaba.sentinel.datasource.converter;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,8 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.alibaba.sentinel.datasource.RuleType;
 import org.springframework.util.StringUtils;
 
+import com.alibaba.csp.sentinel.adapter.gateway.common.api.ApiDefinition;
+import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayFlowRule;
 import com.alibaba.csp.sentinel.datasource.Converter;
-import com.alibaba.csp.sentinel.slots.block.AbstractRule;
 import com.alibaba.csp.sentinel.slots.block.authority.AuthorityRule;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
@@ -35,10 +38,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * @see ParamFlowRule
  * @see ObjectMapper
  */
-public abstract class SentinelConverter<T extends AbstractRule>
-		implements Converter<String, List<AbstractRule>> {
+public abstract class SentinelConverter<T extends Object>
+		implements Converter<String, Collection<Object>> {
 
-	private static final Logger logger = LoggerFactory.getLogger(SentinelConverter.class);
+	private static final Logger log = LoggerFactory.getLogger(SentinelConverter.class);
 
 	private final ObjectMapper objectMapper;
 
@@ -50,11 +53,20 @@ public abstract class SentinelConverter<T extends AbstractRule>
 	}
 
 	@Override
-	public List<AbstractRule> convert(String source) {
-		List<AbstractRule> ruleList = new ArrayList<>();
+	public Collection<Object> convert(String source) {
+		Collection<Object> ruleCollection;
+
+		// hard code
+		if (ruleClass == GatewayFlowRule.class || ruleClass == ApiDefinition.class) {
+			ruleCollection = new HashSet<>();
+		}
+		else {
+			ruleCollection = new ArrayList<>();
+		}
+
 		if (StringUtils.isEmpty(source)) {
-			logger.warn("converter can not convert rules because source is empty");
-			return ruleList;
+			log.warn("converter can not convert rules because source is empty");
+			return ruleCollection;
 		}
 		try {
 			List sourceArray = objectMapper.readValue(source,
@@ -71,11 +83,11 @@ public abstract class SentinelConverter<T extends AbstractRule>
 				}
 
 				Optional.ofNullable(convertRule(item))
-						.ifPresent(convertRule -> ruleList.add(convertRule));
+						.ifPresent(convertRule -> ruleCollection.add(convertRule));
 			});
 
-			if (ruleList.size() != sourceArray.size()) {
-				throw new IllegalArgumentException("convert " + ruleList.size()
+			if (ruleCollection.size() != sourceArray.size()) {
+				throw new IllegalArgumentException("convert " + ruleCollection.size()
 						+ " rules but there are " + sourceArray.size()
 						+ " rules from datasource. RuleClass: "
 						+ ruleClass.getSimpleName());
@@ -84,12 +96,12 @@ public abstract class SentinelConverter<T extends AbstractRule>
 		catch (Exception e) {
 			throw new RuntimeException("convert error: " + e.getMessage(), e);
 		}
-		return ruleList;
+		return ruleCollection;
 	}
 
-	private AbstractRule convertRule(String ruleStr) {
+	private Object convertRule(String ruleStr) {
 		try {
-			final AbstractRule rule = objectMapper.readValue(ruleStr, ruleClass);
+			final Object rule = objectMapper.readValue(ruleStr, ruleClass);
 			RuleType ruleType = RuleType.getByClass(ruleClass).get();
 			switch (ruleType) {
 			case FLOW:
